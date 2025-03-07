@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Torbatti/neshanak/utils"
+	"github.com/go-chi/jwtauth/v5"
 	_ "modernc.org/sqlite"
 )
 
@@ -24,7 +25,7 @@ type BaseAppConfig struct {
 	EncryptionEnv string
 	IsDev         bool
 
-	JWT_SECRET string
+	JwtAuth *jwtauth.JWTAuth
 }
 
 type BaseApp struct {
@@ -39,28 +40,43 @@ type BaseApp struct {
 
 func (app *BaseApp) Bootstrap() error {
 
-	utils.AssertNotEmptyString(app.DataDir())
+	var jwt_secret string
+	var jwt_auth *jwtauth.JWTAuth
+
+	var db *sql.DB
+	var dbPath string
+
+	var err error
 
 	// TODO:
 	// ensure that data dir exist
-	if err := os.MkdirAll(app.DataDir(), os.ModePerm); err != nil {
+	utils.AssertNotEmptyString(app.DataDir())
+	if err = os.MkdirAll(app.DataDir(), os.ModePerm); err != nil {
 		// log.Fatal(err)
 		return err
 	}
-	if err := os.MkdirAll(app.DataDir()+"/img", os.ModePerm); err != nil {
+	if err = os.MkdirAll(app.DataDir()+"/img", os.ModePerm); err != nil {
 		// log.Fatal(err)
 		return err
 	}
 
+	// Get .env
+	jwt_secret = os.Getenv("JWT_SECRET")
+	utils.AssertNotEmptyString(jwt_secret)
+
+	// Set Jwt Auth
+	jwt_auth = jwtauth.New("HS256", []byte(jwt_secret), nil)
+	app.config.JwtAuth = jwt_auth
+
 	// Initiate Sqlite
-	dbPath := filepath.Join(app.DataDir(), "data.db?_journal=WAL")
+	dbPath = filepath.Join(app.DataDir(), "data.db?_journal=WAL")
 	utils.AssertNotEmptyString(dbPath)
 
 	// if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
 	// 	panic(err)
 	// }
 
-	db, err := sql.Open("sqlite", dbPath)
+	db, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		panic("failed making connection with database!")
 		// return err
@@ -79,6 +95,10 @@ func NewBaseApp(config BaseAppConfig) *BaseApp {
 	}
 
 	return app
+}
+
+func (app *BaseApp) JwtAuth() *jwtauth.JWTAuth {
+	return app.config.JwtAuth
 }
 
 func (app *BaseApp) IsBootstrapped() bool {

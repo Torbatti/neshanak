@@ -2,6 +2,8 @@ package core
 
 import (
 	"database/sql"
+
+	"github.com/go-chi/jwtauth/v5"
 )
 
 type App interface {
@@ -18,4 +20,6 @@ type App interface {
 	IsDev() bool
 
 	Db() *sql.DB
+
+	JwtAuth() *jwtauth.JWTAuth
 }
