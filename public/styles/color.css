@@ -1,7 +1,7 @@
 :root{
-    --text: black;
-    --background: black;
-    --primary: black;
+    --text: #111111;
+    --background: #f0f0f0;
+    --primary: #ffef8a;
     --secondary: black;
     --accent: black;
 }
