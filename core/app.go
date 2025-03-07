@@ -2,11 +2,10 @@ package core
 
 import (
 	"database/sql"
-	"log/slog"
 )
 
 type App interface {
-	Logger() *slog.Logger
+	// Logger() *slog.Logger
 
 	IsBootstrapped() bool
 
@@ -18,5 +17,5 @@ type App interface {
 
 	IsDev() bool
 
-	DB() *sql.DB
+	Db() *sql.DB
 }

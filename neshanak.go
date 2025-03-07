@@ -1,6 +1,7 @@
 package neshanak
 
 import (
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -8,7 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Torbatti/neshanak/cmd"
 	"github.com/Torbatti/neshanak/core"
+	"github.com/Torbatti/neshanak/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -61,8 +64,10 @@ func NewWithConfig(config Config) *Neshanak {
 		baseDir, _ := inspectRuntime()
 		config.DefaultDataDir = filepath.Join(baseDir, "nk_data")
 	}
+	utils.AssertNotEmptyString(config.DefaultDataDir)
 
 	executableName = filepath.Base(os.Args[0])
+	utils.AssertNotEmptyString(executableName)
 
 	nk = &Neshanak{
 		RootCmd: &cobra.Command{
@@ -77,6 +82,11 @@ func NewWithConfig(config Config) *Neshanak {
 				DisableDefaultCmd: true,
 			},
 		},
+		devFlag:           config.DefaultDev,
+		dataDirFlag:       config.DefaultDataDir,
+		queryTimeout:      int(config.DefaultQueryTimeout),
+		encryptionEnvFlag: config.DefaultEncryptionEnv,
+		hideStartBanner:   config.HideStartBanner,
 	}
 
 	nk.App = core.NewBaseApp(core.BaseAppConfig{
@@ -88,16 +98,17 @@ func NewWithConfig(config Config) *Neshanak {
 	return nk
 }
 
-func (dst *Neshanak) Start() error {
-	// dst.RootCmd.AddCommand(cmd.NewSuperuserCommand(dst))
-	// dst.RootCmd.AddCommand(cmd.NewServeCommand(dst))
+func (nk *Neshanak) Start() error {
+	nk.RootCmd.AddCommand(cmd.NewSuperuserCommand(nk))
+	nk.RootCmd.AddCommand(cmd.NewServeCommand(nk, !nk.hideStartBanner))
 
-	return dst.Execute()
+	return nk.Execute()
 }
 
-func (dst *Neshanak) Execute() error {
-	// if !dst.skipBootstrap() {
-	if err := dst.Bootstrap(); err != nil {
+func (nk *Neshanak) Execute() error {
+	// if !nk.skipBootstrap() {
+	if err := nk.Bootstrap(); err != nil {
+		log.Fatal(err)
 		return err
 	}
 	// }
@@ -116,7 +127,7 @@ func (dst *Neshanak) Execute() error {
 	// execute the root command
 	go func() {
 		// note: leave to the commands to decide whether to print their error
-		dst.RootCmd.Execute()
+		nk.RootCmd.Execute()
 
 		done <- true
 	}()
@@ -126,6 +137,41 @@ func (dst *Neshanak) Execute() error {
 	return nil
 }
 
+// TODO:
+func (nk *Neshanak) skipBootstrap() bool {
+	// flags := []string{
+	// 	"-h",
+	// 	"--help",
+	// 	"-v",
+	// 	"--version",
+	// }
+
+	if nk.IsBootstrapped() {
+		return true // already bootstrapped
+	}
+
+	// cmd, _, err := nk.RootCmd.Find(os.Args[1:])
+	// if err != nil {
+	// 	return true // unknown command
+	// }
+
+	// for _, arg := range os.Args {
+	// 	if !list.ExistInSlice(arg, flags) {
+	// 		continue
+	// 	}
+
+	// 	// ensure that there is no user defined flag with the same name/shorthand
+	// 	trimmed := strings.TrimLeft(arg, "-")
+	// 	if len(trimmed) > 1 && cmd.Flags().Lookup(trimmed) == nil {
+	// 		return true
+	// 	}
+	// 	if len(trimmed) == 1 && cmd.Flags().ShorthandLookup(trimmed) == nil {
+	// 		return true
+	// 	}
+	// }
+
+	return false
+}
 func inspectRuntime() (baseDir string, withGoRun bool) {
 	if strings.HasPrefix(os.Args[0], os.TempDir()) {
 		// probably ran with go run
